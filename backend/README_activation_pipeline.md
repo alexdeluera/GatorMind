@@ -66,7 +66,7 @@ CPU
 The instrumented ONNX model must be located at:
 
 ```
-backend/ONNX_models/CelebA_CNN_instrumented.onnx
+ONNX_models/CelebA_CNN_instrumented.onnx
 ```
 
 No training notebooks or `.pth` files are required.
@@ -90,8 +90,7 @@ This folder is ignored by Git.
 From the project root:
 
 ```bash
-cd backend/model_utils
-python batch_extract.py --subset 5
+python -m backend.model_utils.batch_extract --subset 5
 ```
 
 This confirms:
@@ -164,8 +163,15 @@ backend/
 ## Running a Subset Extraction (Quick Test)
 
 ```bash
-cd backend/model_utils
 python batch_extract.py --dataset celeba --subset 5
+
+Note: Always run the extraction script using the module form:
+
+    python -m backend.model_utils.batch_extract --subset 5
+
+Running the script directly (e.g., python batch_extract.py) will cause
+Python to lose the package context and result in import errors.
+
 ```
 
 Output structure:

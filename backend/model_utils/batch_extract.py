@@ -58,8 +58,12 @@ def batch_extract(
         np_img = np_img.astype(np.uint8)
         pil_img = Image.fromarray(np_img).resize(image_size)
 
+        # Ensure temp directory exists
+        temp_dir = "activation_cache/temp"
+        os.makedirs(temp_dir, exist_ok=True)
+
         # Save temporary image for extractor
-        temp_path = "temp_img.jpg"
+        temp_path = os.path.join(temp_dir, "temp_img.jpg")
         pil_img.save(temp_path)
 
         # Extract activations
@@ -83,7 +87,7 @@ def batch_extract(
 # Driver section (CelebA only loaded currently)
 # -----------------------------
 if __name__ == "__main__":
-    from datasets.CelebA_loader import load_CelebA
+    from backend.model_utils.datasets.CelebA_loader import load_CelebA
 
     dataset = load_CelebA(split="train")
 
@@ -92,6 +96,6 @@ if __name__ == "__main__":
 
     batch_extract(
         dataset=subset,   # <-- Use the subset here
-        model_path="../../models/CelebA_CNN_instrumented.onnx",
-        output_dir="../../activation_cache/CelebA_test_subset/"
+        model_path="ONNX_models/CelebA_CNN_instrumented.onnx",
+        output_dir="activation_cache/CelebA_test_subset/"
     )
