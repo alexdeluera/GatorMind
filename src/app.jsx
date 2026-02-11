@@ -4,12 +4,11 @@ import Upload from './pages/Upload.jsx';
 import Dashboard from './pages/Dashboard.jsx';
 import Team from './pages/Team.jsx';
 import SignIn from './pages/SignIn.jsx';
-import Nav from './components/Nav.jsx';
 
 export default function App() {
   return (
     <>
-      <Nav />
+      
       <Routes>
         <Route path="/" element={<Landing />} />
         <Route path="/upload" element={<Upload />} />

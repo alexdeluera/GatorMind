@@ -1,4 +1,5 @@
 import "../styles/team.css";
+import Nav from '../components/Nav.jsx';
 
 const teamMembers = [
   {
@@ -56,6 +57,9 @@ export default function Team() {
   );
 
   return (
+    <div>
+      <Nav />
+    
     <section className="team-section">
       <h1 className="team-title">Meet the Team</h1>
 
@@ -67,5 +71,6 @@ export default function Team() {
         {bottomRow.map(renderCard)}
       </div>
     </section>
+    </div>
   );
 }
