@@ -1,0 +1,15 @@
+# Python / venv
+backend/.venv/
+**/__pycache__/
+*.pyc
+
+# Local DB + runtime artifacts
+backend/db/*.db
+backend/db/*.sqlite
+backend/db/*.sqlite3
+
+# ML pipeline outputs / data (if present later)
+activation_cache/
+backend/activation_cache/
+data/
+backend/data/
