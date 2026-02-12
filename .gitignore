@@ -13,3 +13,8 @@ activation_cache/
 backend/activation_cache/
 data/
 backend/data/
+
+# Local build files should not be committed
+/node_modules
+/package-lock.json
+/dist

@@ -1,0 +1,25 @@
+.team-row {
+  display: flex;
+  justify-content: center;
+  gap: 32px;
+  margin-top: 32px;
+}
+
+.team-card {
+  text-decoration: none;
+  text-align: center;
+  color: inherit;
+  transition: color 0.3s ease;
+}
+
+.team-card:hover {
+  color: lightgray;
+}
+
+.team-photo {
+  width: 140px;
+  height: 140px;
+  border-radius: 50%;
+  object-fit: cover;
+  margin-bottom: 12px;
+}
