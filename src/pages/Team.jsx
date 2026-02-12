@@ -11,8 +11,8 @@ const teamMembers = [
   {
     name: "Mike Sanchez",
     title: "Scrum Master",
-    image: "src/headshots/holder.avif",
-    linkedin: "https://www.linkedin.com/in/michaeljesussanchez/",
+    image: "src/headshots/Mike.png",
+    linkedin: "https://www.linkedin.com/in/michael-sanchez-390216141/",
   },
   {
     name: "Jesus Lopez",
