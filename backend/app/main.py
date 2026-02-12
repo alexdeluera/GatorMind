@@ -16,11 +16,24 @@ Note:
 
 from fastapi import FastAPI
 from app.api.routes import router as api_router
+from app.db.mongo import init_mongo, close_mongo
 
 app = FastAPI(title="GatorMind API")
+
+
+@app.on_event("startup")
+async def on_startup() -> None:
+    await init_mongo(app)
+
+
+@app.on_event("shutdown")
+async def on_shutdown() -> None:
+    await close_mongo(app)
+
 
 @app.get("/")
 def root():
     return {"message": "Backend is running"}
+
 
 app.include_router(api_router)

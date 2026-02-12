@@ -13,12 +13,17 @@ Note:
 """
 
 from pathlib import Path
+import os
 
 # Base directory for the backend
 BASE_DIR = Path(__file__).resolve().parents[2]
 
-# Database
+# SQLite (legacy, no longer used for primary DB)
 DB_PATH = BASE_DIR / "db" / "gatormind.db"
+
+# MongoDB settings (primary DB)
+MONGODB_URI = os.getenv("MONGODB_URI", "mongodb://localhost:27017")
+MONGODB_DB = os.getenv("MONGODB_DB", "gator_db")
 
 # Supporting directories
 SQL_DIR = BASE_DIR / "sql"
