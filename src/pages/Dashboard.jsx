@@ -11,7 +11,8 @@ export default function Dashboard() {
   const [status, setStatus] = useState("");
 
   useEffect(() => {
-    // Fetch uploaded files from backend
+
+    //// NEED TO UPDATE THIS ENDPOINT WITH REAL BACKEND URL
     async function fetchFiles() {
       try {
         const res = await fetch("/api/files");
@@ -22,6 +23,7 @@ export default function Dashboard() {
         console.error("Failed to fetch files");
       }
     }
+    //// ENDPOINT UPDATE
 
     fetchFiles();
   }, []);
@@ -36,6 +38,7 @@ export default function Dashboard() {
       setStatus("Running model...");
       setResult(null);
 
+      //// NEED TO UPDATE THIS ENDPOINT WITH REAL BACKEND URL
       const res = await fetch("/api/run", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -44,6 +47,7 @@ export default function Dashboard() {
           dataset: selectedDataset,
         }),
       });
+      //// ENDPOINT UPDATE
 
       const data = await res.json();
       setResult(data);
