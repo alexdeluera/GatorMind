@@ -84,18 +84,49 @@ def batch_extract(
 
 
 # -----------------------------
-# Driver section (CelebA only loaded currently)
+# Flexible Driver Section
 # -----------------------------
 if __name__ == "__main__":
+    import argparse
     from backend.model_utils.datasets.CelebA_loader import load_CelebA
 
-    dataset = load_CelebA(split="train")
+    parser = argparse.ArgumentParser(description="Batch activation extraction")
+    parser.add_argument("--subset", type=int, default=None,
+                        help="Number of images to extract (for quick tests)")
+    parser.add_argument("--dataset", type=str, default="celebA",
+                        help="Dataset name (currently only 'celebA' supported')")
+    parser.add_argument("--model", type=str,
+                        default="ONNX_models/CelebA_CNN_instrumented.onnx",
+                        help="Path to ONNX model")
+    parser.add_argument("--output", type=str, default=None,
+                        help="Output directory for activations")
 
-    # Take only the first 5 images for testing
-    subset = [dataset[i] for i in range(5)]
+    args = parser.parse_args()
 
+    # -----------------------------
+    # Load dataset
+    # -----------------------------
+    if args.dataset.lower() == "celeba":
+        dataset = load_CelebA(split="train")
+    else:
+        raise ValueError(f"Unsupported dataset: {args.dataset}")
+
+    # -----------------------------
+    # Subset or full dataset
+    # -----------------------------
+    if args.subset is not None:
+        dataset = [dataset[i] for i in range(args.subset)]
+        default_output = "activation_cache/CelebA_test_subset/"
+    else:
+        default_output = "activation_cache/CelebA/"
+
+    output_dir = args.output if args.output else default_output
+
+    # -----------------------------
+    # Run extraction
+    # -----------------------------
     batch_extract(
-        dataset=subset,   # <-- Use the subset here
-        model_path="ONNX_models/CelebA_CNN_instrumented.onnx",
-        output_dir="activation_cache/CelebA_test_subset/"
+        dataset=dataset,
+        model_path=args.model,
+        output_dir=output_dir
     )
