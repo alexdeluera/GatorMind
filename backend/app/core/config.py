@@ -11,6 +11,3 @@ ENVIRONMENT = "development"
 DATA_DIR = BASE_DIR / "data"
 ONNX_MODELS_DIR = BASE_DIR / "ONNX_models"
 ACTIVATION_CACHE_DIR = BASE_DIR / "activation_cache"
-
-# Database
-DB_PATH = BASE_DIR / "backend" / "gatormind.db"

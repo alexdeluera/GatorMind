@@ -12,14 +12,15 @@ Note:
 - Avoid hardcoding paths elsewhere in the codebase.
 """
 
+import os
 from pathlib import Path
 
 # Base directory for the backend
 BASE_DIR = Path(__file__).resolve().parents[2]
 
-# Database
-DB_PATH = BASE_DIR / "db" / "gatormind.db"
+# MongoDB
+MONGO_URI = os.getenv("MONGO_URI", "mongodb://localhost:27017")
+MONGO_DB_NAME = os.getenv("MONGO_DB_NAME", "gatormind")
 
 # Supporting directories
-SQL_DIR = BASE_DIR / "sql"
 DOCS_DIR = BASE_DIR / "docs"
