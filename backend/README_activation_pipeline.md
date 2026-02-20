@@ -1,15 +1,21 @@
+# GatorMind — Backend
 
-# GatorMind
-
----
-
-# Environment Setup (for Activation Extraction Pipeline)
-
-This environment is used to run ONNX models, load datasets, and extract intermediate activations for downstream clustering and visualization.
+This backend powers the activation‑extraction and clustering pipeline used to generate interpretable cluster‑path data for neural network models. These precomputed artifacts will later be served through FastAPI for visualization in the dashboard.
 
 ---
 
-## 1. Create the Conda environment
+# Environment Setup
+
+This environment is used for:
+
+- Running ONNX models  
+- Extracting intermediate activations  
+- Streaming MiniBatchKMeans clustering  
+- Generating centroids, cluster paths, and metadata  
+
+---
+
+## 1. Create and activate the Conda environment
 
 ```bash
 conda create -n clusterpaths python=3.11
@@ -18,24 +24,24 @@ conda activate clusterpaths
 
 ---
 
-## 2. Install required Python packages
+## 2. Install required packages
 
-Install ONNX Runtime (CPU):
+### ONNX Runtime (CPU)
 
 ```bash
 pip install onnxruntime
 ```
 
-Install PyTorch and torchvision (CPU‑only):
+### PyTorch (CPU‑only)
 
 ```bash
 pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cpu
 ```
 
-Install supporting libraries:
+### Supporting libraries
 
 ```bash
-pip install numpy pillow tqdm
+pip install numpy pillow tqdm scikit-learn
 ```
 
 Optional:
@@ -61,19 +67,21 @@ CPU
 
 ---
 
-## 4. ONNX model location
+# Activation Extraction Pipeline
 
-The instrumented ONNX model must be located at:
+The extraction pipeline loads an ONNX model, runs inference on the CelebA dataset, and saves intermediate activations in a structured directory for downstream clustering.
+
+### ONNX model location
+
+Place the instrumented ONNX model here:
 
 ```
 ONNX_models/CelebA_CNN_instrumented.onnx
 ```
 
-No training notebooks or `.pth` files are required.
-
 ---
 
-## 5. Dataset setup
+# Dataset Setup
 
 The CelebA loader automatically downloads the dataset into:
 
@@ -81,139 +89,73 @@ The CelebA loader automatically downloads the dataset into:
 backend/data/celeba/
 ```
 
-This folder is ignored by Git.
+This directory is ignored by Git.
 
 ---
 
-## 6. Run the subset extraction test
+# Running Extraction
 
-From the project root:
+### Quick subset test (recommended)
 
 ```bash
 python -m backend.model_utils.batch_extract --subset 5
 ```
 
-This confirms:
+This verifies:
 
 - ONNX model loads  
 - CelebA downloads  
 - Activations extract correctly  
-- Output directory structure is correct  
+- Output directory structure is valid  
 
----
-
-## 7. Run full extraction (optional)
+### Full extraction
 
 ```bash
-python batch_extract.py
+python -m backend.model_utils.batch_extract
 ```
 
-This populates:
+Outputs to:
 
 ```
-backend/activation_cache/CelebA_train/
-```
-
----
-
-# Activation Extraction Pipeline (Backend)
-
-This subsystem generates intermediate neural network activations from ONNX models. These activations support clustering, centroid computation, and cluster‑path visualization.
-
----
-
-## Overview
-
-The pipeline:
-
-- Loads an ONNX model  
-- Loads a dataset (CelebA)  
-- Runs inference on each image  
-- Extracts intermediate activations  
-- Saves activations in a structured directory  
-- Produces metadata (`labels.npy`, `image_ids.npy`)  
-
-The system is model‑agnostic and dataset‑agnostic as long as the ONNX model exposes intermediate outputs.
-
----
-
-## Folder Structure
-
-```
-backend/
-    model_utils/
-        activation_extractor.py
-        batch_extract.py
-        add_intermediate_outputs.py
-        inspect_onnx_nodes.py
-        datasets/
-            __init__.py
-            CelebA_loader.py
-    ONNX_models/
-        CelebA_CNN_instrumented.onnx
-        CelebA_CNN.onnx
-    activation_cache/
-        .gitignore
-    data/
-        .gitignore
-```
-
----
-
-## Running a Subset Extraction (Quick Test)
-
-```bash
-python batch_extract.py --dataset celeba --subset 5
-
-Note: Always run the extraction script using the module form:
-
-    python -m backend.model_utils.batch_extract --subset 5
-
-Running the script directly (e.g., python batch_extract.py) will cause
-Python to lose the package context and result in import errors.
-
-```
-
-Output structure:
-
-```
-activation_cache/CelebA_test_subset/
+backend/activation_cache/CelebA/
     conv1/
     conv2/
     conv3/
     fc1/
     fc2/
-    labels.npy
-    image_ids.npy
 ```
+
+Each folder contains one `.npy` activation file per image.
 
 ---
 
-## Running Full Extraction
+# Clustering Pipeline (Updated)
+
+The clustering step now uses **streaming MiniBatchKMeans**, allowing full CelebA clustering on limited RAM.
+
+Run clustering:
 
 ```bash
-cd backend/model_utils
-python batch_extract.py --dataset celeba
+python -m backend.model_utils.cluster_paths --input activation_cache/CelebA/
 ```
 
-Creates:
+This generates:
 
 ```
-activation_cache/CelebA_train/
-    conv1/
-    conv2/
-    conv3/
-    fc1/
-    fc2/
-    labels.npy
-    image_ids.npy
+activation_cache/CelebA/set_01/
+    centroids.json
+    paths.json
+
+activation_cache/CelebA/metadata.json
 ```
+
+These files contain everything needed for backend API endpoints and frontend visualization.
 
 ---
 
-## Activation Cache Format
+# Activation Cache Format
 
-Each layer folder contains one `.npy` file per image:
+### Per‑layer activations
 
 ```
 conv1/
@@ -222,43 +164,21 @@ conv1/
     ...
 ```
 
-Expected activation shapes:
+### Cluster outputs
 
-| Layer | Shape |
-|-------|--------|
-| conv1 | (1, 16, 64, 64) |
-| conv2 | (1, 32, 32, 32) |
-| conv3 | (1, 64, 16, 16) |
-| fc1   | (1, 128) |
-| fc2   | (1, 64) |
-
-Metadata:
-
-- `labels.npy` — class labels  
-- `image_ids.npy` — dataset indices  
+- `set_01/centroids.json` — cluster centroids per layer  
+- `set_01/paths.json` — cluster path for each example  
+- `metadata.json` — layer names, number of examples, cluster count  
 
 ---
 
-## How Backend Uses This
+# Developer Notes
 
-The activation cache is used for:
-
-- k‑means clustering  
-- centroid computation  
-- cluster assignment  
-- cluster‑path generation  
-- caching for frontend visualization  
-
-Each layer is processed independently.
-
----
-
-## Developer Notes
-
-- Do not commit datasets (`data/.gitignore`).  
-- Do not commit activation outputs (`activation_cache/.gitignore`).  
-- ONNX models are safe to commit.  
+- **Do not commit datasets** (`data/` is git‑ignored).  
+- **Do not commit activation outputs or cluster sets** (`activation_cache/` is git‑ignored).  
+- ONNX models *may* be committed.  
 - PyTorch `.pth` files should not be committed.  
 - New datasets can be added under `model_utils/datasets/`.  
+- The clustering pipeline is now fully streaming and memory‑safe.  
 
 ---
