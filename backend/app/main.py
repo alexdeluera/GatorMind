@@ -1,23 +1,17 @@
-"""
-main.py
-
-Entry point for the FastAPI backend application.
-
-Responsibilities:
-- Initialize the FastAPI app
-- Register API routers
-- Serve as the main startup file for the backend
-
-Note:
-- This file does NOT contain business logic.
-- Route implementations live in app/api/.
-- Database logic lives in app/db/.
-"""
-
 from fastapi import FastAPI
-from app.api.routes import router as api_router
+from fastapi.middleware.cors import CORSMiddleware
+from backend.app.api.routes import router as api_router
 
 app = FastAPI(title="GatorMind API")
+
+# Allow frontend to communicate with backend
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 @app.get("/")
 def root():
