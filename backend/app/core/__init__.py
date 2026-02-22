@@ -1,1 +1,1 @@
-from .settings import BASE_DIR, DB_PATH, SQL_DIR, DOCS_DIR
+from .settings import BASE_DIR, MONGO_URI, MONGO_DB_NAME, DOCS_DIR
