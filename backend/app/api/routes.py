@@ -16,10 +16,12 @@ def health():
     """
     return {"status": "ok"}
 
+
 @router.get("/models")
 def get_models():
     """
     Returns a list of available model names found in activation_cache/.
+
     """
     try: 
         return {"models": list_models()}
@@ -72,6 +74,7 @@ def get_centroids(model_name: str, set_name: str):
         raise HTTPException(status_code=404, detail="Model or set not found")
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+    
 
 @router.get("/models/{model_name}/sets/{set_name}/paths/{example_id}")
 def get_single_path(model_name: str, set_name: str, example_id: str):
