@@ -3,9 +3,103 @@ from backend.model_utils.activation_reader import list_models, list_cluster_path
 from backend.model_utils.activation_reader import load_centroids
 from backend.model_utils.activation_reader import load_example_path
 from backend.model_utils.activation_reader import load_example_paths
+import base64
+from io import BytesIO
+from backend.model_utils.image_extractor import ImageExtractor
+
+def pil_to_base64(img):
+    """
+    Convert a PIL Image object into a base64-encoded JPEG string.
+
+    This is used so images can be returned directly inside JSON responses
+    from the API. The frontend can then decode the base64 string and render
+    the image without needing a separate static file server.
+
+    Steps:
+    1. Create an in-memory buffer (BytesIO) to avoid writing to disk.
+    2. Save the PIL image into the buffer as a JPEG.
+    3. Read the raw bytes from the buffer.
+    4. Base64-encode those bytes and convert them to a UTF-8 string.
+    """
+    buffer = BytesIO()                 # In-memory byte buffer
+    img.save(buffer, format="JPEG")    # Write image data into buffer
+    return base64.b64encode(           # Encode raw bytes → base64
+        buffer.getvalue()
+    ).decode("utf-8")                  # Convert bytes → string for JSON
 
 
 router = APIRouter()
+
+"""Initialize a global ImageExtractor used by the image API routes.
+
+This loads:
+- the CelebA image directory
+- the cluster-path assignments (paths.json)
+- the model metadata (layer order, etc.)
+
+Creating it once at startup avoids reloading these files on every request.
+"""
+extractor = ImageExtractor(
+    celeba_root="C:/Users/mikes/.cache/torch/datasets/celeba/img_align_celeba",
+    paths_file="activation_cache/CelebA/set_01/paths.json",
+    metadata_file="activation_cache/CelebA/metadata.json"
+)
+
+@router.get("/images/example/{example_id}")
+def get_image_by_example(example_id: int):
+    """
+    Return a single CelebA image (base64‑encoded) for the given example ID.
+    """
+    try:
+        img = extractor.get_image_by_id(example_id)
+        encoded = pil_to_base64(img)
+        return {"example_id": example_id, "image_base64": encoded}
+    except FileNotFoundError:
+        raise HTTPException(status_code=404, detail="Image not found")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.get("/images/cluster/{layer_name}/{cluster_id}")
+def get_images_for_cluster(layer_name: str, cluster_id: int, limit: int = 20):
+    """
+    Return base64‑encoded images belonging to a specific cluster
+    within a given layer (e.g., conv3 → cluster 2).
+    """
+    try:
+        imgs = extractor.get_images_for_cluster(layer_name, cluster_id, limit=limit)
+        encoded = [pil_to_base64(img) for img in imgs]
+        return {
+            "layer": layer_name,
+            "cluster_id": cluster_id,
+            "limit": limit,
+            "images": encoded
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.post("/images/path")
+def get_images_for_path(payload: dict):
+    """
+    Return base64‑encoded images that follow a full cluster‑path
+    sequence across all layers (e.g., [2, 0, 4]).
+    """
+    try:
+        path = payload.get("path")
+        limit = payload.get("limit", 20)
+
+        if not isinstance(path, list):
+            raise HTTPException(status_code=400, detail="Path must be a list")
+
+        imgs = extractor.get_images_for_path(path, limit=limit)
+        encoded = [pil_to_base64(img) for img in imgs]
+
+        return {
+            "path": path,
+            "limit": limit,
+            "images": encoded
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 @router.get("/health")
 def health():

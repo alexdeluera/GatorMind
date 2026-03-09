@@ -1,2 +1,12 @@
+# Ignore everything
 *
+
+# Allow required model metadata
+!CelebA/
+!CelebA/metadata.json
+!CelebA/centroids.json
+!CelebA/set_01/
+!CelebA/set_01/paths.json
+
+# Keep .gitignore
 !.gitignore
