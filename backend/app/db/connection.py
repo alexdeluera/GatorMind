@@ -11,7 +11,7 @@ Responsibilities:
 from pymongo import MongoClient
 from pymongo.database import Database
 from pymongo.collection import Collection
-from app.core import MONGO_URI, MONGO_DB_NAME
+from backend.app.core.settings import MONGO_URI, MONGO_DB_NAME
 
 # ---------------------------------------------------------------------------
 # Singleton client – MongoClient already manages an internal connection pool,
