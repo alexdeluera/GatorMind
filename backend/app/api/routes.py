@@ -1,4 +1,5 @@
 from fastapi import APIRouter, HTTPException
+from pydantic import BaseModel
 from backend.model_utils.activation_reader import list_models, list_cluster_path_sets, load_metadata
 from backend.model_utils.activation_reader import load_centroids
 from backend.model_utils.activation_reader import load_example_path
@@ -6,6 +7,11 @@ from backend.model_utils.activation_reader import load_example_paths
 import base64
 from io import BytesIO
 from backend.model_utils.image_extractor import ImageExtractor
+from backend.app.db.connection import get_collection
+from datetime import datetime
+import hashlib
+import secrets
+from pymongo.errors import DuplicateKeyError
 
 def pil_to_base64(img):
     """
@@ -30,6 +36,16 @@ def pil_to_base64(img):
 
 router = APIRouter()
 
+
+class SignUpRequest(BaseModel):
+    email: str
+    password: str
+
+
+class SignInRequest(BaseModel):
+    email: str
+    password: str
+
 """Initialize a global ImageExtractor used by the image API routes.
 
 This loads:
@@ -44,6 +60,73 @@ extractor = ImageExtractor(
     paths_file="activation_cache/CelebA/set_01/paths.json",
     metadata_file="activation_cache/CelebA/metadata.json"
 )
+
+
+def _hash_password(password: str, salt: str) -> str:
+    """Return a salted SHA-256 hash for the given password."""
+    return hashlib.sha256((salt + password).encode("utf-8")).hexdigest()
+
+
+@router.post("/auth/signup")
+def sign_up(payload: SignUpRequest):
+    """Create a new user account in MongoDB with email and password.
+
+    - Stores a salted SHA-256 hash of the password (never the raw password).
+    - Enforces unique email addresses.
+    """
+
+    users = get_collection("users")
+    # Ensure there is a unique index on email (safe to call multiple times)
+    users.create_index("email", unique=True)
+
+    email_normalized = payload.email.lower()
+    salt = secrets.token_hex(16)
+    password_hash = _hash_password(payload.password, salt)
+
+    try:
+        users.insert_one(
+            {
+                "email": email_normalized,
+                "password_hash": password_hash,
+                "salt": salt,
+                "created_at": datetime.utcnow(),
+            }
+        )
+    except DuplicateKeyError:
+        raise HTTPException(status_code=409, detail="Account already exists")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+    return {"message": "Account created"}
+
+
+@router.post("/auth/signin")
+def sign_in(payload: SignInRequest):
+    """Validate user credentials against MongoDB.
+
+    On success, returns a friendly message used by the frontend.
+    On failure (no such account or wrong password), returns 404 with
+    detail "account not found" so the frontend can display the
+    required prompt.
+    """
+
+    users = get_collection("users")
+    email_normalized = payload.email.lower()
+
+    user = users.find_one({"email": email_normalized})
+    if not user:
+        raise HTTPException(status_code=404, detail="account not found")
+
+    salt = user.get("salt", "")
+    expected_hash = user.get("password_hash", "")
+    if not salt or not expected_hash:
+        # Corrupt or legacy record; treat as not found for security.
+        raise HTTPException(status_code=404, detail="account not found")
+
+    if _hash_password(payload.password, salt) != expected_hash:
+        raise HTTPException(status_code=404, detail="account not found")
+
+    return {"message": "sign in successfully"}
 
 @router.get("/images/example/{example_id}")
 def get_image_by_example(example_id: int):
