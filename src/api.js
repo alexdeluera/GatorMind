@@ -1,0 +1,43 @@
+// src/api.js
+const BASE_URL = "http://127.0.0.1:8000";
+
+async function getJSON(path) {
+  const res = await fetch(`${BASE_URL}${path}`);
+  if (!res.ok) {
+    const text = await res.text().catch(() => "");
+    throw new Error(`GET ${path} -> ${res.status} ${res.statusText} ${text ? `\n${text}` : ""}`);
+  }
+  return res.json();
+}
+
+export const fetchModels = () => getJSON(`/models`);
+
+export const fetchSets = (model) =>
+  getJSON(`/models/${encodeURIComponent(model)}/sets`);
+
+export const fetchMetadata = (model) =>
+  getJSON(`/models/${encodeURIComponent(model)}/metadata`);
+
+export const fetchCentroids = (model, setName) =>
+  getJSON(`/models/${encodeURIComponent(model)}/sets/${encodeURIComponent(setName)}/centroids`);
+
+export const fetchExamplePath = (model, setName, exampleId) =>
+  getJSON(`/models/${encodeURIComponent(model)}/sets/${encodeURIComponent(setName)}/paths/${encodeURIComponent(exampleId)}`);
+
+export const fetchPaths = (model, setName, limit = 50, offset = 0) =>
+  getJSON(
+    `/models/${encodeURIComponent(model)}/sets/${encodeURIComponent(setName)}/paths?limit=${limit}&offset=${offset}`
+  );
+
+export const runModelApi = async (model, dataset) => {
+  const res = await fetch(`${BASE_URL}/run`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ model, dataset }),
+  });
+  if (!res.ok) {
+    const text = await res.text().catch(() => "");
+    throw new Error(`POST /run -> ${res.status} ${res.statusText} ${text}`);
+  }
+  return res.json();
+};

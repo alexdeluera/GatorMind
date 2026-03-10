@@ -16,8 +16,6 @@ class ActivationExtractor:
 
         # These are the ONNX *tensor* names for the activations
         self.activation_nodes = {
-            "conv1": "relu",
-            "conv2": "relu_1",
             "conv3": "relu_2",
             "fc1": "relu_3",
             "fc2": "relu_4",
