@@ -1,5 +1,5 @@
 {
-  "num_examples": 162770,
+  "num_examples": 5000,
   "layers": [
     "conv3",
     "fc1",
