@@ -1,12 +1,20 @@
 # Ignore everything
 *
 
-# Allow required model metadata
+# Allow CelebA folder
 !CelebA/
+
+# Allow metadata
 !CelebA/metadata.json
-!CelebA/centroids.json
+
+# Allow cluster sets
 !CelebA/set_01/
 !CelebA/set_01/paths.json
+!CelebA/set_01/centroids.json
 
-# Keep .gitignore
+# Allow subset images
+!CelebA/images/
+!CelebA/images/*.jpg
+
+# Keep .gitignore itself
 !.gitignore
