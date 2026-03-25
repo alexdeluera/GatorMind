@@ -17,7 +17,7 @@ def iter_activation_batches(layer_dir, batch_size=256):
 
     for fname in files:
         idx = int(fname.replace(".npy", ""))
-        arr = np.load(os.path.join(layer_dir, fname)).reshape(-1)  # <-- flatten here
+        arr = np.load(os.path.join(layer_dir, fname)).reshape(-1)  # flatten
 
         batch.append(arr)
         batch_ids.append(idx)
@@ -68,7 +68,14 @@ def generate_cluster_paths(model_dir, k=5, set_name="set_01"):
     """
 
     model_dir = Path(model_dir)
-    layer_dirs = [d for d in model_dir.iterdir() if d.is_dir() and d.name not in ["set_01", "set_02"]]
+
+    # Exclude non-layer folders
+    EXCLUDE = {"set_01", "set_02", "images"}
+
+    layer_dirs = [
+        d for d in model_dir.iterdir()
+        if d.is_dir() and d.name not in EXCLUDE
+    ]
 
     # Sort layers for consistent ordering
     layer_dirs = sorted(layer_dirs, key=lambda p: p.name)

@@ -12,6 +12,7 @@ def batch_extract(
     output_dir,
     extractor_class=ActivationExtractor,
     image_size=(64, 64),
+    subset_ids=None,   # NEW: list of example IDs to extract
 ):
     """
     Generic batch activation extraction pipeline.
@@ -23,6 +24,7 @@ def batch_extract(
         output_dir: Directory to save activations
         extractor_class: Activation extractor class to use
         image_size: Expected input size for the ONNX model
+        subset_ids: List of example IDs to extract (CelebA indices)
     """
 
     # -----------------------------
@@ -44,14 +46,20 @@ def batch_extract(
     image_ids = []
 
     # -----------------------------
+    # Determine which indices to process
+    # -----------------------------
+    if subset_ids is None:
+        subset_ids = list(range(len(dataset)))  # default: full dataset
+
+    # -----------------------------
     # Extraction loop
     # -----------------------------
-    for idx in tqdm(range(len(dataset)), desc="Extracting activations"):
-        img, label = dataset[idx]
+    for example_id in tqdm(subset_ids, desc="Extracting activations"):
+        img, label = dataset[example_id]
 
         # Save metadata
         labels.append(label)
-        image_ids.append(idx)
+        image_ids.append(example_id)
 
         # Convert tensor → numpy → HWC → PIL
         np_img = img.numpy().transpose(1, 2, 0) * 255
@@ -69,14 +77,16 @@ def batch_extract(
         # Extract activations
         acts = extractor.extract(temp_path)
 
-        # Save each layer's activation
+        # Save each layer's activation using REAL example ID
         for layer_name in layer_names:
             np.save(
-                os.path.join(output_dir, layer_name, f"{idx}.npy"),
+                os.path.join(output_dir, layer_name, f"{example_id}.npy"),
                 acts[layer_name],
             )
 
+    # -----------------------------
     # Save metadata
+    # -----------------------------
     np.save(os.path.join(output_dir, "labels.npy"), np.array(labels))
     np.save(os.path.join(output_dir, "image_ids.npy"), np.array(image_ids))
 
@@ -91,13 +101,17 @@ if __name__ == "__main__":
     from backend.model_utils.datasets.CelebA_loader import load_CelebA
 
     parser = argparse.ArgumentParser(description="Batch activation extraction")
-    parser.add_argument("--subset", type=int, default=None,
-                        help="Number of images to extract (for quick tests)")
+
+    parser.add_argument("--subset_ids", type=str, default=None,
+                        help="Path to .npy file containing example IDs to extract")
+
     parser.add_argument("--dataset", type=str, default="celebA",
                         help="Dataset name (currently only 'celebA' supported')")
+
     parser.add_argument("--model", type=str,
                         default="ONNX_models/CelebA_CNN_instrumented.onnx",
                         help="Path to ONNX model")
+
     parser.add_argument("--output", type=str, default=None,
                         help="Output directory for activations")
 
@@ -112,12 +126,13 @@ if __name__ == "__main__":
         raise ValueError(f"Unsupported dataset: {args.dataset}")
 
     # -----------------------------
-    # Subset or full dataset
+    # Load subset IDs (if provided)
     # -----------------------------
-    if args.subset is not None:
-        dataset = [dataset[i] for i in range(args.subset)]
-        default_output = "activation_cache/CelebA_test_subset/"
+    if args.subset_ids:
+        subset_ids = np.load(args.subset_ids).tolist()
+        default_output = "activation_cache/CelebA/"
     else:
+        subset_ids = None
         default_output = "activation_cache/CelebA/"
 
     output_dir = args.output if args.output else default_output
@@ -128,5 +143,6 @@ if __name__ == "__main__":
     batch_extract(
         dataset=dataset,
         model_path=args.model,
-        output_dir=output_dir
+        output_dir=output_dir,
+        subset_ids=subset_ids,
     )

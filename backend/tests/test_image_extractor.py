@@ -3,11 +3,7 @@ from backend.model_utils.image_extractor import ImageExtractor
 from PIL import Image
 import os
 
-CELEBA_ROOT = os.path.join(
-    os.path.expanduser("~/.cache/torch/datasets"),
-    "celeba",
-    "img_align_celeba"
-)
+CELEBA_ROOT = "activation_cache/CelebA/images"
 PATHS_FILE = "activation_cache/CelebA/set_01/paths.json"
 METADATA_FILE = "activation_cache/CelebA/metadata.json"
 
@@ -22,7 +18,11 @@ def extractor():
 
 
 def test_get_image_by_id(extractor):
-    img = extractor.get_image_by_id(0)
+    # Pick a real example key like "example_0016"
+    example_key = next(iter(extractor.paths.keys()))
+    # Extract the numeric part
+    example_id = int(example_key.replace("example_", ""))
+    img = extractor.get_image_by_id(example_id)
     assert isinstance(img, Image.Image)
 
 
@@ -34,7 +34,6 @@ def test_get_images_for_cluster(extractor):
 
 
 def test_get_images_for_path(extractor):
-    # Grab a real path from paths.json
     example_key = next(iter(extractor.paths.keys()))
     real_path = extractor.paths[example_key]
 

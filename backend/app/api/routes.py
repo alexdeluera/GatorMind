@@ -6,6 +6,7 @@ from backend.model_utils.activation_reader import load_example_path
 from backend.model_utils.activation_reader import load_example_paths
 import base64
 from io import BytesIO
+import os
 from backend.model_utils.image_extractor import ImageExtractor
 from backend.app.db.connection import get_collection
 from datetime import datetime
@@ -55,11 +56,24 @@ This loads:
 
 Creating it once at startup avoids reloading these files on every request.
 """
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+PROJECT_ROOT = os.path.abspath(os.path.join(BASE_DIR, "../../../"))
+
+CELEBA_ROOT = os.path.join(PROJECT_ROOT, "activation_cache", "CelebA", "images")
+PATHS_FILE = os.path.join(PROJECT_ROOT, "activation_cache", "CelebA", "set_01", "paths.json")
+METADATA_FILE = os.path.join(PROJECT_ROOT, "activation_cache", "CelebA", "metadata.json")
+
+# Debug prints
+print("CELEBA_ROOT =", CELEBA_ROOT)
+print("PATHS_FILE =", PATHS_FILE)
+print("METADATA_FILE =", METADATA_FILE)
+
 extractor = ImageExtractor(
-    celeba_root="C:/Users/mikes/.cache/torch/datasets/celeba/img_align_celeba",
-    paths_file="activation_cache/CelebA/set_01/paths.json",
-    metadata_file="activation_cache/CelebA/metadata.json"
+    celeba_root=CELEBA_ROOT,
+    paths_file=PATHS_FILE,
+    metadata_file=METADATA_FILE
 )
+
 
 
 def _hash_password(password: str, salt: str) -> str:
