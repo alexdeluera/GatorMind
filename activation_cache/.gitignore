@@ -6,6 +6,7 @@
 
 # Allow metadata
 !CelebA/metadata.json
+!CelebA/subset_attributes.json.json
 
 # Allow cluster sets
 !CelebA/set_01/

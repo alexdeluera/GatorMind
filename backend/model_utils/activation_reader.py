@@ -19,6 +19,7 @@ import numpy as np
 import json
 import os
 
+
 # Base directory where all extracted activation data is stored
 BASE_DIR = Path(__file__).resolve().parents[2] / "activation_cache"
 
@@ -66,4 +67,16 @@ def load_example_path(model_name: str, set_name: str, example_id: str):
 def load_metadata(model_name: str):
     path = BASE_DIR / model_name / "metadata.json"
     with open(path) as f:
+        return json.load(f)
+
+def load_subset_attributes(model_name: str):
+    """
+    Loads subset_attributes.json for a given model.
+    Currently only supports CelebA.
+    """
+    base = os.path.join("activation_cache", model_name, "subset_attributes.json")
+    if not os.path.exists(base):
+        raise FileNotFoundError(f"No attribute file found for model {model_name}")
+
+    with open(base, "r") as f:
         return json.load(f)
