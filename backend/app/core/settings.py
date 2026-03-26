@@ -14,13 +14,21 @@ Note:
 
 import os
 from pathlib import Path
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+load_dotenv()
 
 # Base directory for the backend
 BASE_DIR = Path(__file__).resolve().parents[2]
 
 # MongoDB
-MONGO_URI = os.getenv("MONGO_URI", "mongodb://localhost:27017")
+MONGO_URI = os.getenv("MONGO_URI")
 MONGO_DB_NAME = os.getenv("MONGO_DB_NAME", "gatormind")
+
+# Safety check: if MONGO_URI is missing, the app should warn you immediately
+if not MONGO_URI:
+    raise ValueError("MONGO_URI not found! Ensure your .env file is configured correctly.")
 
 # Supporting directories
 DOCS_DIR = BASE_DIR / "docs"

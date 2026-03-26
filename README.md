@@ -8,6 +8,7 @@ Please fork the project to get started then either clone the repository or downl
 
 ``` 
 npm install 
+pip install -r requirements.txt
 ``` 
 After the dependencies are finished running, the project may be run locally to view and interact in browser. To run locally, please run the following command:
 ```
@@ -15,7 +16,7 @@ npm start <script name>
 ```
 
 Note that script name may be:
-- **dev** (for general development)
+- **dev** (for general development, includes frontend and backend startup)
 - **build** (for production build)
 - **preview** (for basic viewing)
 

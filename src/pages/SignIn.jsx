@@ -38,13 +38,11 @@ function SignIn() {
       try {
         const res = await signIn(email, password);
         const successMsg = res?.message || "sign in successfully";
-        alert(successMsg); // Required success prompt
+        //alert(successMsg); // Required success prompt
         window.location.href = "./dashboard";
       } catch (err) {
-        const msg = err.message && err.message.toLowerCase().includes("account not found")
-          ? "account not found"
-          : "account not found";
-        alert(msg); // Required failure prompt
+        const errorMsg = err.message?.toLowerCase() || "";
+          setMessage("Incorrect email or password. Please create an account or try again.");
       }
     }
   };

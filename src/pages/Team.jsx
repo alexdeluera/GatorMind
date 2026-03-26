@@ -17,19 +17,19 @@ const teamMembers = [
   {
     name: "Jesus Lopez",
     title: "Backend Developer",
-    image: "src/headshots/holder.avif",
+    image: "src/headshots/Jesus.png",
     linkedin: "https://www.linkedin.com/in/jesusdlopezmarti/",
   },
   {
     name: "Jonathan Soto",
     title: "Frontend Developer",
-    image: "src/headshots/holder.avif",
+    image: "src/headshots/Jonathan.png",
     linkedin: "https://www.linkedin.com/in/sotojonathan/",
   },
   {
     name: "Yaotian Zhang",
     title: "Flex Developer",
-    image: "src/headshots/holder.avif",
+    image: "src/headshots/Yaotian.png",
     linkedin: "https://www.linkedin.com/in/yaotian-zhang-32073123a/",
   },
 ];
