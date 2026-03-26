@@ -4,6 +4,7 @@ from backend.model_utils.activation_reader import list_models, list_cluster_path
 from backend.model_utils.activation_reader import load_centroids
 from backend.model_utils.activation_reader import load_example_path
 from backend.model_utils.activation_reader import load_example_paths
+from backend.model_utils.activation_reader import load_subset_attributes
 import base64
 from io import BytesIO
 import os
@@ -197,6 +198,57 @@ def get_images_for_path(payload: dict):
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/models/{model_name}/attributes")
+def list_attributes(model_name: str):
+    """
+    Returns the list of attribute names available for this model.
+    """
+    try:
+        attrs = load_subset_attributes(model_name)
+        if not attrs:
+            return {"model": model_name, "attributes": []}
+
+        # All entries have the same keys, so take the first one
+        first_key = next(iter(attrs))
+        attribute_names = list(attrs[first_key].keys())
+
+        return {"model": model_name, "attributes": attribute_names}
+
+    except FileNotFoundError:
+        raise HTTPException(status_code=404, detail="Attributes not found for this model")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.get("/models/{model_name}/attributes/filter")
+def filter_by_attribute(model_name: str, attr: str, value: int):
+    """
+    Returns example IDs where the given attribute == value.
+    Example: /models/CelebA/attributes/filter?attr=Smiling&value=1
+    """
+    try:
+        attrs = load_subset_attributes(model_name)
+
+        matching = [
+            int(example_id)
+            for example_id, attr_dict in attrs.items()
+            if attr in attr_dict and attr_dict[attr] == value
+        ]
+
+        return {
+            "model": model_name,
+            "attribute": attr,
+            "value": value,
+            "count": len(matching),
+            "example_ids": matching
+        }
+
+    except FileNotFoundError:
+        raise HTTPException(status_code=404, detail="Attributes not found for this model")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
 
 @router.get("/health")
 def health():
