@@ -42,6 +42,7 @@ router = APIRouter()
 class SignUpRequest(BaseModel):
     email: str
     password: str
+    name: str
 
 
 class SignInRequest(BaseModel):
@@ -99,7 +100,7 @@ def sign_up(payload: SignUpRequest):
     password_hash = _hash_password(payload.password, salt)
 
     try:
-        users.insert_one(
+        result = users.insert_one(
             {
                 "email": email_normalized,
                 "password_hash": password_hash,
@@ -112,7 +113,9 @@ def sign_up(payload: SignUpRequest):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-    return {"message": "Account created"}
+    return {"message": "Account created", 
+            "userId": str(result.inserted_id), 
+            "username": email_normalized.split('@')[0]}
 
 
 @router.post("/auth/signin")
@@ -141,7 +144,9 @@ def sign_in(payload: SignInRequest):
     if _hash_password(payload.password, salt) != expected_hash:
         raise HTTPException(status_code=404, detail="account not found")
 
-    return {"message": "sign in successfully"}
+    return {"message": "sign in successfully",
+            "userId": str(user["_id"]), 
+            "username": user["email"].split('@')[0]}
 
 @router.get("/images/example/{example_id}")
 def get_image_by_example(example_id: int):

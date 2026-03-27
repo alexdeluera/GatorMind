@@ -1,11 +1,14 @@
 // src/pages/Dashboard.jsx
 import { useEffect, useState } from "react";
+import {useParams} from "react-router-dom";
 import Plot from "react-plotly.js";
 import "../styles/dashboard.css";
 import NavLoggedIn from '../components/NavLoggedIn.jsx';
 import { fetchMetadata as apiFetchMetadata, fetchPaths, runModelApi } from "../api";
 
 export default function Dashboard() {
+  const rawName = localStorage.getItem("username") || "User";
+  const capitalizedName = rawName.charAt(0).toUpperCase() + rawName.slice(1);
   const [models, setModels] = useState([]);
   const [datasets, setDatasets] = useState([]);
   const [selectedModel, setSelectedModel] = useState("CelebA_CNN.onnx");
@@ -135,7 +138,7 @@ export default function Dashboard() {
       <NavLoggedIn />
 
       <section className="dashboard-container">
-        <h1>Dashboard</h1>
+        <h1>Dashboard for {capitalizedName}</h1>
 
         <div className="selection-panel">
           <div className="selector">

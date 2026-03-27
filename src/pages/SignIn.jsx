@@ -37,12 +37,18 @@ function SignIn() {
     } else {
       try {
         const res = await signIn(email, password);
-        const successMsg = res?.message || "sign in successfully";
-        //alert(successMsg); // Required success prompt
-        window.location.href = "./dashboard";
+        const userId = res?.userId;
+        const username = res?.username;
+
+        if (userId) {
+          localStorage.setItem("userId", userId);
+          localStorage.setItem("username", username || email.split('@')[0]);
+          window.location.href = `./dashboard/${userId}`;
+        } else {
+          window.location.href = "./dashboard";
+        }
       } catch (err) {
-        const errorMsg = err.message?.toLowerCase() || "";
-          setMessage("Incorrect email or password. Please create an account or try again.");
+        setMessage("Incorrect email or password.");
       }
     }
   };

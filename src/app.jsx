@@ -13,6 +13,7 @@ export default function App() {
         <Route path="/" element={<Landing />} />
         <Route path="/upload" element={<Upload />} />
         <Route path="/dashboard" element={<Dashboard />} />
+        <Route path="/dashboard/:userId" element={<Dashboard />} />
         <Route path="/team" element={<Team />} />
         <Route path="/signin" element={<SignIn/>} />
         {/* Optional catch-all for 404s */}
