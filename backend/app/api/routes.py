@@ -42,7 +42,6 @@ router = APIRouter()
 class SignUpRequest(BaseModel):
     email: str
     password: str
-    name: str
 
 
 class SignInRequest(BaseModel):
