@@ -42,6 +42,10 @@ def batch_extract(
     for layer in layer_names:
         os.makedirs(os.path.join(output_dir, layer), exist_ok=True)
 
+    # Create images folder
+    images_dir = os.path.join(output_dir, "images")
+    os.makedirs(images_dir, exist_ok=True)
+
     labels = []
     image_ids = []
 
@@ -64,7 +68,15 @@ def batch_extract(
         # Convert tensor → numpy → HWC → PIL
         np_img = img.numpy().transpose(1, 2, 0) * 255
         np_img = np_img.astype(np.uint8)
-        pil_img = Image.fromarray(np_img).resize(image_size)
+        # Image for MODEL (keep original size)
+        model_img = Image.fromarray(np_img).resize(image_size)
+       
+
+        # Image for DISPLAY (make it 64x64)
+        display_img = Image.fromarray(np_img).resize((64, 64))
+
+        # Save display image
+        display_img.save(os.path.join(images_dir, f"{example_id:06d}.jpg"))
 
         # Ensure temp directory exists
         temp_dir = "activation_cache/temp"
@@ -72,7 +84,7 @@ def batch_extract(
 
         # Save temporary image for extractor
         temp_path = os.path.join(temp_dir, "temp_img.jpg")
-        pil_img.save(temp_path)
+        model_img.save(temp_path)
 
         # Extract activations
         acts = extractor.extract(temp_path)

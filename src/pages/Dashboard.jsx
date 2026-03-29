@@ -4,7 +4,7 @@ import {useParams} from "react-router-dom";
 import Plot from "react-plotly.js";
 import "../styles/dashboard.css";
 import NavLoggedIn from '../components/NavLoggedIn.jsx';
-import { fetchMetadata as apiFetchMetadata, fetchPaths, runModelApi } from "../api";
+import { fetchModels, fetchMetadata as apiFetchMetadata, fetchPaths, runModelApi } from "../api";
 
 export default function Dashboard() {
   const rawName = localStorage.getItem("username") || "User";
@@ -19,30 +19,59 @@ export default function Dashboard() {
   const [metadata, setMetadata] = useState(null);
   const [layerSankey, setLayerSankey] = useState({ labels: [], source: [], target: [], value: [], x: [], y: [] });
 
+  // useEffect(() => {
+  //   // fetch metadata for the CelebA model and derive options
+  //   async function fetchMetadata() {
+  //     try {
+  //       const data = await apiFetchMetadata("CelebA");
+
+  //       setMetadata(data.metadata || null);
+
+  //       if (data.model) {
+  //         setModels([data.model]);
+  //       }
+
+  //       if (data.metadata && Array.isArray(data.metadata.layers)) {
+  //         setDatasets(data.metadata.layers);
+  //       } else if (data.datasets) {
+  //         setDatasets(data.datasets);
+  //       }
+  //     } catch (err) {
+  //       console.error("Failed to fetch metadata", err);
+  //     }
+  //   }
+
+  //   fetchMetadata();
+  // }, []);
+
+
   useEffect(() => {
-    // fetch metadata for the CelebA model and derive options
-    async function fetchMetadata() {
-      try {
-        const data = await apiFetchMetadata("CelebA");
+  async function loadInitialData() {
+    try {
+      const modelsRes = await fetchModels();
+      const modelList = modelsRes.models || [];
 
+      setDatasets(modelList);
+
+      const initialDataset = modelList.includes("CelebA")
+        ? "CelebA"
+        : modelList[0] || "";
+
+      setSelectedDataset(initialDataset);
+
+      if (initialDataset) {
+        const data = await apiFetchMetadata(initialDataset);
         setMetadata(data.metadata || null);
-
-        if (data.model) {
-          setModels([data.model]);
-        }
-
-        if (data.metadata && Array.isArray(data.metadata.layers)) {
-          setDatasets(data.metadata.layers);
-        } else if (data.datasets) {
-          setDatasets(data.datasets);
-        }
-      } catch (err) {
-        console.error("Failed to fetch metadata", err);
       }
-    }
 
-    fetchMetadata();
-  }, []);
+      setModels(["CelebA_CNN.onnx"]);
+    } catch (err) {
+      console.error("Failed to load dashboard data", err);
+    }
+  }
+
+  loadInitialData();
+}, []);
 
   async function buildLayerSankeyFromSet(setName = "set_01", limit = 50, offset = 0) {
     if (!metadata) return;
@@ -65,7 +94,9 @@ export default function Dashboard() {
         }
       });
 
-      const pathsRes = await fetchPaths("CelebA", setName, limit, offset);
+      // const pathsRes = await fetchPaths("CelebA", setName, limit, offset);
+      const pathsRes = await fetchPaths(selectedDataset, setName, limit, offset);
+
       const paths = pathsRes.paths || {};
 
       const counts = new Map();
@@ -122,7 +153,8 @@ export default function Dashboard() {
         setStatus("Backend run unavailable; building Sankey from cached paths.");
       }
 
-      const setToUse = selectedDataset === "CelebA" ? "set_01" : selectedDataset;
+      //const setToUse = selectedDataset === "CelebA" ? "set_01" : selectedDataset;
+      const setToUse = "set_01";
       await buildLayerSankeyFromSet(setToUse, 50, 0);
 
       if (!runSucceeded) {
