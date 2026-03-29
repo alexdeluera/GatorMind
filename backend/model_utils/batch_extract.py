@@ -98,7 +98,8 @@ def batch_extract(
 # -----------------------------
 if __name__ == "__main__":
     import argparse
-    from backend.model_utils.datasets.CelebA_loader import load_CelebA
+    # from backend.model_utils.datasets.CelebA_loader import load_CelebA
+    from backend.model_utils.datasets import load_CelebA, load_catdog
 
     parser = argparse.ArgumentParser(description="Batch activation extraction")
 
@@ -122,6 +123,8 @@ if __name__ == "__main__":
     # -----------------------------
     if args.dataset.lower() == "celeba":
         dataset = load_CelebA(split="train")
+    elif args.dataset.lower() == "catdog":
+        dataset = load_catdog(split="train")
     else:
         raise ValueError(f"Unsupported dataset: {args.dataset}")
 
@@ -130,19 +133,44 @@ if __name__ == "__main__":
     # -----------------------------
     if args.subset_ids:
         subset_ids = np.load(args.subset_ids).tolist()
-        default_output = "activation_cache/CelebA/"
+        #default_output = "activation_cache/CelebA/"
     else:
         subset_ids = None
+        #default_output = "activation_cache/CelebA/"
+    
+    if args.dataset.lower() == "celeba":
         default_output = "activation_cache/CelebA/"
+    elif args.dataset.lower() == "catdog":
+        default_output = "activation_cache/CatDog/"
+    else:
+        default_output = "activation_cache/output/"
 
     output_dir = args.output if args.output else default_output
 
     # -----------------------------
     # Run extraction
     # -----------------------------
-    batch_extract(
-        dataset=dataset,
-        model_path=args.model,
-        output_dir=output_dir,
-        subset_ids=subset_ids,
-    )
+    #batch_extract(
+    #    dataset=dataset,
+    #    model_path=args.model,
+    #    output_dir=output_dir,
+    #    subset_ids=subset_ids,
+    #)
+    from backend.model_utils.activation_extractor_catdog import ActivationExtractor as CatDogActivationExtractor
+
+    if args.dataset.lower() == "catdog":
+        batch_extract(
+            dataset=dataset,
+            model_path=args.model,
+            output_dir=output_dir,
+            extractor_class=CatDogActivationExtractor,
+            image_size=(32, 32),
+            subset_ids=subset_ids,
+        )
+    else:
+        batch_extract(
+            dataset=dataset,
+            model_path=args.model,
+            output_dir=output_dir,
+            subset_ids=subset_ids,
+        )

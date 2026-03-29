@@ -16,11 +16,13 @@ import os
 from pathlib import Path
 from dotenv import load_dotenv
 
-# Load environment variables from .env file
-load_dotenv()
+
 
 # Base directory for the backend
 BASE_DIR = Path(__file__).resolve().parents[2]
+
+# Load environment variables from .env file
+load_dotenv(BASE_DIR / ".env")
 
 # MongoDB
 MONGO_URI = os.getenv("MONGO_URI")
