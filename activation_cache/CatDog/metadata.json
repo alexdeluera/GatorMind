@@ -1,0 +1,9 @@
+{
+  "num_examples": 10000,
+  "layers": [
+    "conv3",
+    "fc1",
+    "fc2"
+  ],
+  "k": 5
+}
