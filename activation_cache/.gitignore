@@ -17,5 +17,20 @@
 !CelebA/images/
 !CelebA/images/*.jpg
 
+# Allow CatDog folder
+!CatDog/
+
+# Allow metadata
+!CatDog/metadata.json
+
+# Allow cluster sets
+!CatDog/set_01/
+!CatDog/set_01/paths.json
+!CatDog/set_01/centroids.json
+
+# Allow subset images
+!CatDog/images/
+!CatDog/images/*.jpg
+
 # Keep .gitignore itself
 !.gitignore
