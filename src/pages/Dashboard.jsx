@@ -4,7 +4,7 @@ import {useParams} from "react-router-dom";
 import Plot from "react-plotly.js";
 import "../styles/dashboard.css";
 import NavLoggedIn from '../components/NavLoggedIn.jsx';
-import { fetchModels, fetchMetadata as apiFetchMetadata, fetchPaths, runModelApi } from "../api";
+import { fetchModels, fetchMetadata as apiFetchMetadata, fetchPaths, runModelApi, fetchExampleImage, fetchImages, fetchAttributes, fetchAttributeIds} from "../api";
 
 export default function Dashboard() {
   const rawName = localStorage.getItem("username") || "User";
@@ -15,6 +15,15 @@ export default function Dashboard() {
   const [selectedDataset, setSelectedDataset] = useState("CelebA");
   const [result, setResult] = useState(null);
   const [status, setStatus] = useState("");
+
+  const [attributes, setAttributes] = useState([]);
+  const [selectedAttribute, setSelectedAttribute] = useState("");
+  const [modelRun, setModelRun] = useState(false);
+
+  const [attributeIdsValue1, setAttributeIdsValue1] = useState([]);
+  const [attributeImages, setAttributeImages] = useState([]);
+  const [selectedImageIds, setSelectedImageIds] = useState([]);
+  const [highlightedPaths, setHighlightedPaths] = useState([]);
 
   const [metadata, setMetadata] = useState(null);
   const [layerSankey, setLayerSankey] = useState({ labels: [], source: [], target: [], value: [], x: [], y: [] });
@@ -73,7 +82,60 @@ export default function Dashboard() {
   loadInitialData();
 }, []);
 
-  async function buildLayerSankeyFromSet(setName = "set_01", limit = 50, offset = 0) {
+  useEffect(() => {
+    async function loadAttributeData() {
+      if (selectedDataset && selectedAttribute && modelRun) {
+        try {
+          const idsValue1 = await fetchAttributeIds(selectedDataset, selectedAttribute, 1);
+          const ids = idsValue1.example_ids || [];
+          
+          setAttributeIdsValue1(ids);
+          
+          // Select 16 random IDs and fetch their images
+          if (ids.length > 0) {
+            const shuffled = [...ids].sort(() => 0.5 - Math.random());
+            const selectedIds = shuffled.slice(0, Math.min(16, ids.length));
+            
+            const imagePromises = selectedIds.map(id => fetchExampleImage(id));
+            const images = await Promise.all(imagePromises);
+            
+            setAttributeImages(images.map(img => img.image_base64));
+            setSelectedImageIds(selectedIds);
+            
+            // Fetch all paths for the attribute using fetchPaths with a large limit
+            const pathsRes = await fetchPaths(selectedDataset, "set_01", Math.max(ids.length + 100, 10000), 0);
+            const allPaths = pathsRes.paths || {};
+            
+            // Filter paths to only include IDs from this attribute
+            const attributePaths = [];
+            const idSet = new Set(ids);
+            
+            for (const exampleId of Object.keys(allPaths)) {
+              const numericId = parseInt(exampleId.replace(/[^\d]/g, ''), 10);
+              if (idSet.has(numericId)) {
+                attributePaths.push(allPaths[exampleId]);
+              }
+            }
+            
+            setHighlightedPaths(attributePaths);
+          } else {
+            setAttributeImages([]);
+            setSelectedImageIds([]);
+            setHighlightedPaths([]);
+          }
+        } catch (err) {
+          console.error("Failed to fetch attribute IDs", err);
+          setAttributeIdsValue1([]);
+          setAttributeImages([]);
+          setHighlightedPaths([]);
+        }
+      }
+    }
+
+    loadAttributeData();
+  }, [selectedDataset, selectedAttribute, modelRun]);
+
+  async function buildLayerSankeyFromSet(setName = "set_01", limit = 1000, offset = 0) {
     if (!metadata) return;
     try {
       const { layers = [], k = 0 } = metadata;
@@ -118,15 +180,50 @@ export default function Dashboard() {
       const source = [];
       const target = [];
       const value = [];
+      const colors = [];
 
       for (const [key, cnt] of counts.entries()) {
         const [s, t] = key.split("|").map((v) => parseInt(v, 10));
         source.push(s);
         target.push(t);
         value.push(cnt);
+        colors.push('rgba(31, 119, 180, 0.4)'); 
       }
 
-      setLayerSankey({ labels, source, target, value, x, y });
+      if (highlightedPaths.length > 0) {
+        const highlightedCounts = new Map();
+        
+        highlightedPaths.forEach(path => {
+          if (!Array.isArray(path) || path.length < 2) return;
+          for (let i = 0; i < path.length - 1; i++) {
+            const a = path[i];
+            const b = path[i + 1];
+            if (typeof a !== "number" || typeof b !== "number") continue;
+            if (a < 0 || a >= k || b < 0 || b >= k) continue;
+            const src = layerNodeIndices[i][a];
+            const tgt = layerNodeIndices[i + 1][b];
+            const key = `${src}|${tgt}`;
+            highlightedCounts.set(key, (highlightedCounts.get(key) || 0) + 1);
+          }
+        });
+
+        for (let i = 0; i < source.length; i++) {
+          const key = `${source[i]}|${target[i]}`;
+          if (highlightedCounts.has(key)) {
+            colors[i] = 'rgba(255, 127, 14, 0.8)';
+          }
+        }
+      }
+
+      setLayerSankey({ 
+        labels, 
+        source, 
+        target, 
+        value, 
+        x, 
+        y,
+        colors
+      });
     } catch (err) {
       console.error("Error building Sankey from set paths:", err);
     }
@@ -153,12 +250,22 @@ export default function Dashboard() {
         setStatus("Backend run unavailable; building Sankey from cached paths.");
       }
 
-      //const setToUse = selectedDataset === "CelebA" ? "set_01" : selectedDataset;
+      try {
+        const attrs = await fetchAttributes(selectedDataset);
+        setAttributes(attrs.attributes || []);
+        setSelectedAttribute(""); 
+        setModelRun(true);
+      } catch (err) {
+        console.error("Failed to fetch attributes", err);
+        setAttributes([]);
+        setSelectedAttribute("");
+      }
+
       const setToUse = "set_01";
-      await buildLayerSankeyFromSet(setToUse, 50, 0);
+      await buildLayerSankeyFromSet(setToUse, 10000, 0);
 
       if (!runSucceeded) {
-        setStatus("Sankey built from cached paths.");
+        setStatus("Run complete.");
       }
     } catch (err) {
       setStatus("Error running model.");
@@ -220,7 +327,7 @@ export default function Dashboard() {
         {/* metadata Sankey diagram */}
         {layerSankey.labels.length > 0 && (
           <div className="sankey-container" style={{ marginTop: 24 }}>
-            <h2>Metadata Sankey</h2>
+            <h2>Sankey Diagram</h2>
             <Plot
               data={[
                 {
@@ -237,11 +344,13 @@ export default function Dashboard() {
                     source: layerSankey.source,
                     target: layerSankey.target,
                     value: layerSankey.value,
+                    color: layerSankey.colors,
                   },
-                },
+                  name: 'Paths'
+                }
               ]}
               layout={{
-                title: "Layers × clusters (k = " + metadata.k + ")",
+                title: "Layers × clusters (k = " + metadata.k + ")" + (highlightedPaths.length > 0 ? ` - ${highlightedPaths.length} highlighted paths` : ""),
                 font: { size: 10 },
                 margin: { l: 0, r: 0, t: 40, b: 0 },
               }}
@@ -252,17 +361,58 @@ export default function Dashboard() {
           </div>
         )}
 
-        <div className="results-panel">
-          <h2>Results</h2>
+        {/* Attribute selector dropdown */}
+        {modelRun && attributes.length > 0 && (
+          <div className="attribute-selector" style={{ marginTop: 24 }}>
+            <h3>Select Attribute</h3>
+            <select
+              value={selectedAttribute}
+              onChange={(e) => setSelectedAttribute(e.target.value)}
+              style={{
+                padding: '8px 12px',
+                borderRadius: '4px',
+                border: '1px solid #ccc',
+                fontSize: '14px',
+                minWidth: '200px'
+              }}
+            >
+              <option value="">-- Select an attribute --</option>
+              {attributes.map((attribute, index) => (
+                <option key={index} value={attribute}>
+                  {attribute}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
 
-          {!result && <p>No results yet. Run a model to see output.</p>}
-
-          {result && (
-            <pre className="result-box">
-              {JSON.stringify(result, null, 2)}
-            </pre>
-          )}
-        </div>
+        {/* Attribute Images Grid */}
+        {attributeImages.length > 0 && (
+          <div className="attribute-images-section" style={{ marginTop: 24 }}>
+            <h2>Sample Images for "{selectedAttribute}" ({attributeIdsValue1.length} total examples)</h2>
+            <div className="attribute-images-grid" style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(4, 1fr)',
+              gap: '10px',
+              marginTop: '10px'
+            }}>
+              {attributeImages.map((base64, index) => (
+                <img
+                  key={index}
+                  src={`data:image/jpeg;base64,${base64}`}
+                  alt={`Sample ${index + 1} for ${selectedAttribute}`}
+                  title={`Example ID: ${selectedImageIds[index] || 'Unknown'}`}
+                  style={{
+                    width: '100%',
+                    height: 'auto',
+                    border: '1px solid #ccc',
+                    borderRadius: '4px'
+                  }}
+                />
+              ))}
+            </div>
+          </div>
+        )}
       </section>
     </div>
   );

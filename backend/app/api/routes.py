@@ -364,8 +364,8 @@ def get_paths_preview(model_name: str, set_name: str, limit: int = 50, offset: i
         # clamp
         if limit < 1:
             limit = 1
-        if limit > 200:
-            limit = 200
+        if limit > 10000:
+            limit = 10000
         if offset < 0:
             offset = 0
 

@@ -29,6 +29,20 @@ export const fetchPaths = (model, setName, limit = 50, offset = 0) =>
     `/models/${encodeURIComponent(model)}/sets/${encodeURIComponent(setName)}/paths?limit=${limit}&offset=${offset}`
   );
 
+export const fetchExampleImage = (exampleId) =>
+  getJSON(`/images/example/${encodeURIComponent(exampleId)}`);
+
+export const fetchImages = (layerName, clusterId) =>
+  getJSON(`/images/cluster/${encodeURIComponent(layerName)}/${encodeURIComponent(clusterId)}`);
+
+export const fetchAttributes = (model) =>
+  getJSON(`/models/${encodeURIComponent(model)}/attributes`);
+
+export const fetchAttributeIds = (model, attribute, value = 0) =>
+  getJSON(
+    `/models/${encodeURIComponent(model)}/attributes/filter?attr=${encodeURIComponent(attribute)}&value=${value}`
+  );
+
 export const runModelApi = async (model, dataset) => {
   const res = await fetch(`${BASE_URL}/run`, {
     method: "POST",
