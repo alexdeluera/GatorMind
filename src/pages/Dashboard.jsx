@@ -91,69 +91,75 @@ export default function Dashboard() {
 }, []);
 
   useEffect(() => {
-    async function loadAttributeData() {
-      if (selectedDataset && selectedAttribute && modelRun) {
-        try {
-          const idsValue1 = await fetchAttributeIds(selectedDataset, selectedAttribute, 1);
-          const ids = idsValue1.example_ids || [];
-          
-          setAttributeIdsValue1(ids);
-          
-          // Select 16 random IDs and fetch their images
-          if (ids.length > 0) {
-            const shuffled = [...ids].sort(() => 0.5 - Math.random());
-            const selectedIds = shuffled.slice(0, Math.min(16, ids.length));
-            
-            const imagePromises = selectedIds.map(id => fetchExampleImage(id));
-            const images = await Promise.all(imagePromises);
-            
-            setAttributeImages(images.map(img => img.image_base64));
-            setSelectedImageIds(selectedIds);
-            
-            // Fetch the mapping from CelebA IDs to subset path indices
-            const mappingRes = await fetchIdToIndexMapping(selectedDataset);
-            const mapping = mappingRes.id_to_index || {};
-            setIdToIndexMapping(mapping);
+  async function loadAttributeData() {
+    if (selectedDataset && selectedAttribute && modelRun) {
+      try {
+        // Fetch filtered IDs ONCE
+        const res = await fetchAttributeIds(selectedDataset, selectedAttribute, 1);
+        const ids = res.example_ids || [];
 
-            // Convert the selected CelebA attribute IDs into subset example indices
-            const subsetIndices = ids
-              .map((id) => mapping[id])
-              .filter((index) => typeof index === "number" && !Number.isNaN(index));
-            const subsetIndexSet = new Set(subsetIndices);
+        setAttributeIdsValue1(ids);
 
-            // Fetch all paths for the attribute using fetchPaths with a large limit
-            const pathsRes = await fetchPaths(selectedDataset, "set_01", Math.max(ids.length + 100, 10000), 0);
-            const allPaths = pathsRes.paths || {};
+        // Select 16 random IDs and fetch their images
+        if (ids.length > 0) {
 
-            // Filter paths to only include IDs from this attribute
-            const attributePaths = [];
+          const shuffled = [...ids].sort(() => 0.5 - Math.random());
+          const selectedIds = shuffled.slice(0, Math.min(16, ids.length));
 
-            for (const exampleId of Object.keys(allPaths)) {
-              const match = exampleId.match(/(\d+)$/);
-              const numericId = match ? parseInt(match[1], 10) : NaN;
-              if (subsetIndexSet.has(numericId)) {
-                attributePaths.push(allPaths[exampleId]);
-              }
+          const imagePromises = selectedIds.map(id => fetchExampleImage(id));
+          const images = await Promise.all(imagePromises);
+
+          setAttributeImages(images.map(img => img.image_base64));
+          setSelectedImageIds(selectedIds);
+
+          // Fetch the mapping from CelebA IDs to subset path indices
+          const mappingRes = await fetchIdToIndexMapping(selectedDataset);
+          const mapping = mappingRes.id_to_index || {};
+          setIdToIndexMapping(mapping);
+
+          // Convert the selected CelebA attribute IDs into subset example indices
+          const subsetIndices = ids
+            .map((id) => mapping[id])
+            .filter((index) => typeof index === "number" && !Number.isNaN(index));
+          const subsetIndexSet = new Set(subsetIndices);
+
+          // Fetch all paths for the attribute using fetchPaths with a large limit
+          const pathsRes = await fetchPaths(selectedDataset, "set_01", Math.max(ids.length + 100, 10000), 0);
+          const allPaths = pathsRes.paths || {};
+
+          // Filter paths to only include IDs from this attribute
+          const attributePaths = [];
+
+          for (const exampleId of Object.keys(allPaths)) {
+            const match = exampleId.match(/(\d+)$/);
+            const numericId = match ? parseInt(match[1], 10) : NaN;
+            if (subsetIndexSet.has(numericId)) {
+              attributePaths.push(allPaths[exampleId]);
             }
-
-            console.log("attributePaths first 10:", attributePaths.slice(0, 10));
-            setHighlightedPaths(attributePaths);
-          } else {
-            setAttributeImages([]);
-            setSelectedImageIds([]);
-            setHighlightedPaths([]);
           }
-        } catch (err) {
-          console.error("Failed to fetch attribute IDs", err);
-          setAttributeIdsValue1([]);
+
+          console.log("attributePaths first 10:", attributePaths.slice(0, 10));
+          setHighlightedPaths(attributePaths);
+
+        } else {
           setAttributeImages([]);
+          setSelectedImageIds([]);
           setHighlightedPaths([]);
         }
+
+      } catch (err) {
+        console.error("Failed to fetch attribute IDs", err);
+        setAttributeIdsValue1([]);
+        setAttributeImages([]);
+        setHighlightedPaths([]);
       }
     }
+  }
 
-    loadAttributeData();
-  }, [selectedDataset, selectedAttribute, modelRun]);
+  loadAttributeData();
+}, [selectedDataset, selectedAttribute, modelRun]);
+
+
 
   useEffect(() => {
     async function loadExampleIdOptions() {
@@ -363,7 +369,7 @@ export default function Dashboard() {
       try {
         const attrs = await fetchAttributes(selectedDataset);
         setAttributes(attrs.attributes || []);
-        setSelectedAttribute(""); 
+        setSelectedAttribute("");
         setModelRun(true);
       } catch (err) {
         console.error("Failed to fetch attributes", err);
@@ -397,10 +403,7 @@ export default function Dashboard() {
               onChange={(e) => setSelectedModel(e.target.value)}
             >
               <option value="">-- Choose Model --</option>
-              {/* ensure the ONNX filename is available as a default */}
-              {!models.includes("CelebA_CNN.onnx") && (
-                <option value="CelebA_CNN.onnx">CelebA_CNN.onnx</option>
-              )}
+
               {models.map((model, index) => (
                 <option key={index} value={model}>
                   {model}
