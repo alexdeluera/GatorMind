@@ -4,7 +4,7 @@ import {useParams} from "react-router-dom";
 import Plot from "react-plotly.js";
 import "../styles/dashboard.css";
 import NavLoggedIn from '../components/NavLoggedIn.jsx';
-import { fetchModels, fetchMetadata as apiFetchMetadata, fetchPaths, runModelApi, fetchExampleImage, fetchImages, fetchAttributes, fetchAttributeIds} from "../api";
+import { fetchModels, fetchMetadata as apiFetchMetadata, fetchPaths, runModelApi, fetchExampleImage, fetchExamplePath, fetchImages, fetchAttributes, fetchAttributeIds, fetchIdToIndexMapping, fetchImagesForPath } from "../api";
 
 export default function Dashboard() {
   const rawName = localStorage.getItem("username") || "User";
@@ -24,6 +24,14 @@ export default function Dashboard() {
   const [attributeImages, setAttributeImages] = useState([]);
   const [selectedImageIds, setSelectedImageIds] = useState([]);
   const [highlightedPaths, setHighlightedPaths] = useState([]);
+  const [idToIndexMapping, setIdToIndexMapping] = useState({});
+  const [activeTab, setActiveTab] = useState("attribute");
+  const [availableExampleIds, setAvailableExampleIds] = useState([]);
+  const [selectedExampleId, setSelectedExampleId] = useState("");
+  const [selectedExampleImage, setSelectedExampleImage] = useState(null);
+  const [selectedExamplePath, setSelectedExamplePath] = useState([]);
+  const [selectedPath, setSelectedPath] = useState([]);
+  const [pathRes, setPathRes] = useState(null);
 
   const [metadata, setMetadata] = useState(null);
   const [layerSankey, setLayerSankey] = useState({ labels: [], source: [], target: [], value: [], x: [], y: [] });
@@ -102,21 +110,33 @@ export default function Dashboard() {
             setAttributeImages(images.map(img => img.image_base64));
             setSelectedImageIds(selectedIds);
             
+            // Fetch the mapping from CelebA IDs to subset path indices
+            const mappingRes = await fetchIdToIndexMapping(selectedDataset);
+            const mapping = mappingRes.id_to_index || {};
+            setIdToIndexMapping(mapping);
+
+            // Convert the selected CelebA attribute IDs into subset example indices
+            const subsetIndices = ids
+              .map((id) => mapping[id])
+              .filter((index) => typeof index === "number" && !Number.isNaN(index));
+            const subsetIndexSet = new Set(subsetIndices);
+
             // Fetch all paths for the attribute using fetchPaths with a large limit
             const pathsRes = await fetchPaths(selectedDataset, "set_01", Math.max(ids.length + 100, 10000), 0);
             const allPaths = pathsRes.paths || {};
-            
+
             // Filter paths to only include IDs from this attribute
             const attributePaths = [];
-            const idSet = new Set(ids);
-            
+
             for (const exampleId of Object.keys(allPaths)) {
-              const numericId = parseInt(exampleId.replace(/[^\d]/g, ''), 10);
-              if (idSet.has(numericId)) {
+              const match = exampleId.match(/(\d+)$/);
+              const numericId = match ? parseInt(match[1], 10) : NaN;
+              if (subsetIndexSet.has(numericId)) {
                 attributePaths.push(allPaths[exampleId]);
               }
             }
-            
+
+            console.log("attributePaths first 10:", attributePaths.slice(0, 10));
             setHighlightedPaths(attributePaths);
           } else {
             setAttributeImages([]);
@@ -134,6 +154,96 @@ export default function Dashboard() {
 
     loadAttributeData();
   }, [selectedDataset, selectedAttribute, modelRun]);
+
+  useEffect(() => {
+    async function loadExampleIdOptions() {
+      if (!modelRun || !selectedDataset) return;
+      try {
+        const pathsRes = await fetchPaths(selectedDataset, "set_01", 10000, 0);
+        const ids = Object.keys(pathsRes.paths || {}).sort((a, b) => {
+          const aMatch = a.match(/(\d+)$/);
+          const bMatch = b.match(/(\d+)$/);
+          return (aMatch ? parseInt(aMatch[1], 10) : 0) - (bMatch ? parseInt(bMatch[1], 10) : 0);
+        });
+        setAvailableExampleIds(ids);
+      } catch (err) {
+        console.error("Failed to load example IDs", err);
+        setAvailableExampleIds([]);
+      }
+    }
+
+    loadExampleIdOptions();
+  }, [modelRun, selectedDataset]);
+
+  useEffect(() => {
+    if (!selectedDataset || !selectedExampleId) {
+      if (activeTab === "image") {
+        setSelectedExampleImage(null);
+        setSelectedExamplePath([]);
+        setHighlightedPaths([]);
+      }
+      return;
+    }
+
+    async function loadExampleSelection() {
+      try {
+        const pathRes = await fetchExamplePath(selectedDataset, "set_01", selectedExampleId);
+        const path = pathRes.path || [];
+        setSelectedExamplePath(path);
+        setHighlightedPaths([path]);
+
+        const match = selectedExampleId.match(/(\d+)$/);
+        const exampleIndex = match ? parseInt(match[1], 10) : NaN;
+        if (!Number.isNaN(exampleIndex)) {
+          const imageRes = await fetchExampleImage(exampleIndex);
+          setSelectedExampleImage(imageRes.image_base64);
+        } else {
+          setSelectedExampleImage(null);
+        }
+      } catch (err) {
+        console.error("Failed to load selected example image or path", err);
+        setSelectedExampleImage(null);
+        setSelectedExamplePath([]);
+        setHighlightedPaths([]);
+      }
+    }
+
+    if (activeTab === "image") {
+      loadExampleSelection();
+    }
+  }, [activeTab, selectedExampleId, selectedDataset]);
+
+  useEffect(() => {
+    if (activeTab !== "path" || !metadata) return;
+    setSelectedPath((prev) => {
+      if (prev.length === metadata.layers.length) return prev;
+      return new Array(metadata.layers.length).fill(0);
+    });
+  }, [activeTab, metadata]);
+
+  useEffect(() => {
+    if (activeTab !== "path" || !selectedPath.length || !selectedDataset) return;
+
+    async function loadSelectedPathImages() {
+      try {
+        setHighlightedPaths([selectedPath]);
+        const pathResponse = await fetchImagesForPath(selectedPath, 16);
+        setPathRes(pathResponse);
+      } catch (err) {
+        console.error("Failed to load images for selected path", err);
+        setPathRes(null);
+        setHighlightedPaths([]);
+      }
+    }
+
+    loadSelectedPathImages();
+  }, [activeTab, selectedPath, selectedDataset]);
+
+  useEffect(() => {
+    if (!metadata) return;
+    const setToUse = "set_01";
+    buildLayerSankeyFromSet(setToUse, 10000, 0);
+  }, [highlightedPaths, metadata, selectedDataset]);
 
   async function buildLayerSankeyFromSet(setName = "set_01", limit = 1000, offset = 0) {
     if (!metadata) return;
@@ -324,6 +434,231 @@ export default function Dashboard() {
         </div>
 
         {status && <p className="status">{status}</p>}
+
+        {/* Tab navigation for analysis sections */}
+        {modelRun && attributes.length > 0 && (
+          <div className="analysis-tabs" style={{ display: 'flex', gap: '10px', marginTop: 24 }}>
+            <button
+              type="button"
+              onClick={() => {
+                setActiveTab('attribute');
+                setSelectedExampleId('');
+                setSelectedExampleImage(null);
+                setSelectedExamplePath([]);
+                setSelectedPath([]);
+                setPathRes(null);
+                setHighlightedPaths([]);
+              }}
+              style={{
+                padding: '10px 16px',
+                borderRadius: '6px',
+                border: activeTab === 'attribute' ? '2px solid #1f77b4' : '1px solid #ccc',
+                background: activeTab === 'attribute' ? '#e8f2ff' : '#fff',
+                cursor: 'pointer'
+              }}
+            >
+              Attribute Analysis
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setActiveTab('path');
+                setSelectedAttribute('');
+                setAttributeImages([]);
+                setSelectedImageIds([]);
+                setAttributeIdsValue1([]);
+                setSelectedExampleId('');
+                setSelectedExampleImage(null);
+                setSelectedExamplePath([]);
+                setHighlightedPaths([]);
+              }}
+              style={{
+                padding: '10px 16px',
+                borderRadius: '6px',
+                border: activeTab === 'path' ? '2px solid #1f77b4' : '1px solid #ccc',
+                background: activeTab === 'path' ? '#e8f2ff' : '#fff',
+                cursor: 'pointer'
+              }}
+            >
+              Path Analysis
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setActiveTab('image');
+                setSelectedAttribute('');
+                setAttributeImages([]);
+                setSelectedImageIds([]);
+                setAttributeIdsValue1([]);
+                setSelectedPath([]);
+                setPathRes(null);
+                setHighlightedPaths([]);
+              }}
+              style={{
+                padding: '10px 16px',
+                borderRadius: '6px',
+                border: activeTab === 'image' ? '2px solid #1f77b4' : '1px solid #ccc',
+                background: activeTab === 'image' ? '#e8f2ff' : '#fff',
+                cursor: 'pointer'
+              }}
+            >
+              Image Analysis
+            </button>
+          </div>
+        )}
+
+        {activeTab === 'attribute' && modelRun && attributes.length > 0 && (
+          <div className="attribute-analysis-section" style={{ marginTop: 24 }}>
+            <div className="attribute-selector">
+              <h3>Select Attribute</h3>
+              <select
+                value={selectedAttribute}
+                onChange={(e) => setSelectedAttribute(e.target.value)}
+                style={{
+                  padding: '8px 12px',
+                  borderRadius: '4px',
+                  border: '1px solid #ccc',
+                  fontSize: '14px',
+                  minWidth: '200px'
+                }}
+              >
+                <option value="">-- Select an attribute --</option>
+                {attributes.map((attribute, index) => (
+                  <option key={index} value={attribute}>
+                    {attribute}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {attributeImages.length > 0 && (
+              <div className="attribute-images-section" style={{ marginTop: 24 }}>
+                <h2>Sample Images for "{selectedAttribute}" ({attributeIdsValue1.length} total examples)</h2>
+                <div className="attribute-images-grid" style={{
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(4, 1fr)',
+                  gap: '10px',
+                  marginTop: '10px'
+                }}>
+                  {attributeImages.map((base64, index) => (
+                    <img
+                      key={index}
+                      src={`data:image/jpeg;base64,${base64}`}
+                      alt={`Sample ${index + 1} for ${selectedAttribute}`}
+                      title={`Example ID: ${selectedImageIds[index] || 'Unknown'}`}
+                      style={{
+                        width: '100%',
+                        height: 'auto',
+                        border: '1px solid #ccc',
+                        borderRadius: '4px'
+                      }}
+                    />
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {activeTab === 'image' && modelRun && (
+          <div className="image-analysis-section" style={{ marginTop: 24 }}>
+            <div className="image-selector">
+              <h3>Select Example ID</h3>
+              <select
+                value={selectedExampleId}
+                onChange={(e) => setSelectedExampleId(e.target.value)}
+                style={{
+                  padding: '8px 12px',
+                  borderRadius: '4px',
+                  border: '1px solid #ccc',
+                  fontSize: '14px',
+                  minWidth: '220px'
+                }}
+              >
+                <option value="">-- Select an example --</option>
+                {availableExampleIds.map((exampleId) => (
+                  <option key={exampleId} value={exampleId}>
+                    {exampleId}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {selectedExampleImage && (
+              <div className="selected-image-section" style={{ marginTop: 24 }}>
+                <h2>Selected Example: {selectedExampleId}</h2>
+                <img
+                  src={`data:image/jpeg;base64,${selectedExampleImage}`}
+                  alt={`Selected example ${selectedExampleId}`}
+                  style={{
+                    maxWidth: '100%',
+                    height: 'auto',
+                    border: '1px solid #ccc',
+                    borderRadius: '4px'
+                  }}
+                />
+              </div>
+            )}
+          </div>
+        )}
+
+        {activeTab === 'path' && modelRun && metadata && (
+          <div className="path-analysis-section" style={{ marginTop: 24 }}>
+            <h3>Select a path across layers</h3>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+              {Array.from({ length: metadata.layers.length }).map((_, layerIndex) => (
+                <span key={layerIndex} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <select
+                    value={selectedPath[layerIndex] ?? 0}
+                    onChange={(e) => {
+                      const value = parseInt(e.target.value, 10);
+                      setSelectedPath((prev) => {
+                        const next = [...(prev.length ? prev : new Array(metadata.layers.length).fill(0))];
+                        next[layerIndex] = value;
+                        return next;
+                      });
+                    }}
+                    style={{
+                      padding: '8px 12px',
+                      borderRadius: '4px',
+                      border: '1px solid #ccc',
+                      fontSize: '14px'
+                    }}
+                  >
+                    {Array.from({ length: metadata.k }).map((__, optionIndex) => (
+                      <option key={optionIndex} value={optionIndex}>
+                        {optionIndex}
+                      </option>
+                    ))}
+                  </select>
+                  {layerIndex < metadata.layers.length - 1 && <span style={{ fontSize: '18px' }}>→</span>}
+                </span>
+              ))}
+            </div>
+
+            {pathRes && pathRes.images && pathRes.images.length > 0 && (
+              <div className="path-images-section" style={{ marginTop: 24 }}>
+                <h2>Images matching path {selectedPath.join(' → ')}</h2>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '10px', marginTop: '10px' }}>
+                  {pathRes.images.slice(0, 16).map((base64, index) => (
+                    <img
+                      key={index}
+                      src={`data:image/jpeg;base64,${base64}`}
+                      alt={`Path image ${index + 1}`}
+                      style={{
+                        width: '100%',
+                        height: 'auto',
+                        border: '1px solid #ccc',
+                        borderRadius: '4px'
+                      }}
+                    />
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
         {/* metadata Sankey diagram */}
         {layerSankey.labels.length > 0 && (
           <div className="sankey-container" style={{ marginTop: 24 }}>
@@ -361,58 +696,6 @@ export default function Dashboard() {
           </div>
         )}
 
-        {/* Attribute selector dropdown */}
-        {modelRun && attributes.length > 0 && (
-          <div className="attribute-selector" style={{ marginTop: 24 }}>
-            <h3>Select Attribute</h3>
-            <select
-              value={selectedAttribute}
-              onChange={(e) => setSelectedAttribute(e.target.value)}
-              style={{
-                padding: '8px 12px',
-                borderRadius: '4px',
-                border: '1px solid #ccc',
-                fontSize: '14px',
-                minWidth: '200px'
-              }}
-            >
-              <option value="">-- Select an attribute --</option>
-              {attributes.map((attribute, index) => (
-                <option key={index} value={attribute}>
-                  {attribute}
-                </option>
-              ))}
-            </select>
-          </div>
-        )}
-
-        {/* Attribute Images Grid */}
-        {attributeImages.length > 0 && (
-          <div className="attribute-images-section" style={{ marginTop: 24 }}>
-            <h2>Sample Images for "{selectedAttribute}" ({attributeIdsValue1.length} total examples)</h2>
-            <div className="attribute-images-grid" style={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(4, 1fr)',
-              gap: '10px',
-              marginTop: '10px'
-            }}>
-              {attributeImages.map((base64, index) => (
-                <img
-                  key={index}
-                  src={`data:image/jpeg;base64,${base64}`}
-                  alt={`Sample ${index + 1} for ${selectedAttribute}`}
-                  title={`Example ID: ${selectedImageIds[index] || 'Unknown'}`}
-                  style={{
-                    width: '100%',
-                    height: 'auto',
-                    border: '1px solid #ccc',
-                    borderRadius: '4px'
-                  }}
-                />
-              ))}
-            </div>
-          </div>
-        )}
       </section>
     </div>
   );

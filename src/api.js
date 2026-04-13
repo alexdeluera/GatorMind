@@ -43,6 +43,24 @@ export const fetchAttributeIds = (model, attribute, value = 0) =>
     `/models/${encodeURIComponent(model)}/attributes/filter?attr=${encodeURIComponent(attribute)}&value=${value}`
   );
 
+export const fetchIdToIndexMapping = (model) =>
+  getJSON(`/models/${encodeURIComponent(model)}/id-to-index`);
+
+export const fetchImagesForPath = async (path, limit = 16) => {
+  const res = await fetch(`${BASE_URL}/images/path`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ path, limit }),
+  });
+
+  if (!res.ok) {
+    const text = await res.text().catch(() => "");
+    throw new Error(`POST /images/path -> ${res.status} ${res.statusText} ${text}`);
+  }
+
+  return res.json();
+};
+
 export const runModelApi = async (model, dataset) => {
   const res = await fetch(`${BASE_URL}/run`, {
     method: "POST",
