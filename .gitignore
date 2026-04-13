@@ -18,5 +18,8 @@ backend/data/
 /package-lock.json
 /dist
 
+# Environment variables (DO NOT COMMIT)
+backend/.env
+
 #env files
-.env
+backend/.env

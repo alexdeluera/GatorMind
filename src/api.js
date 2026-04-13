@@ -74,11 +74,11 @@ export const runModelApi = async (model, dataset) => {
   return res.json();
 };
 
-export const signUp = async (email, password) => {
+export const signUp = async (email, password, name) => {
   const res = await fetch(`${BASE_URL}/auth/signup`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ email, password }),
+    body: JSON.stringify({ email, password, name }),
   });
 
   const data = await res.json().catch(() => null);
