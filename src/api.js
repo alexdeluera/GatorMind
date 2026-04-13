@@ -29,6 +29,38 @@ export const fetchPaths = (model, setName, limit = 50, offset = 0) =>
     `/models/${encodeURIComponent(model)}/sets/${encodeURIComponent(setName)}/paths?limit=${limit}&offset=${offset}`
   );
 
+export const fetchExampleImage = (exampleId) =>
+  getJSON(`/images/example/${encodeURIComponent(exampleId)}`);
+
+export const fetchImages = (layerName, clusterId) =>
+  getJSON(`/images/cluster/${encodeURIComponent(layerName)}/${encodeURIComponent(clusterId)}`);
+
+export const fetchAttributes = (model) =>
+  getJSON(`/models/${encodeURIComponent(model)}/attributes`);
+
+export const fetchAttributeIds = (model, attribute, value = 0) =>
+  getJSON(
+    `/models/${encodeURIComponent(model)}/attributes/filter?attr=${encodeURIComponent(attribute)}&value=${value}`
+  );
+
+export const fetchIdToIndexMapping = (model) =>
+  getJSON(`/models/${encodeURIComponent(model)}/id-to-index`);
+
+export const fetchImagesForPath = async (path, limit = 16) => {
+  const res = await fetch(`${BASE_URL}/images/path`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ path, limit }),
+  });
+
+  if (!res.ok) {
+    const text = await res.text().catch(() => "");
+    throw new Error(`POST /images/path -> ${res.status} ${res.statusText} ${text}`);
+  }
+
+  return res.json();
+};
+
 export const runModelApi = async (model, dataset) => {
   const res = await fetch(`${BASE_URL}/run`, {
     method: "POST",

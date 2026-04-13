@@ -8,6 +8,7 @@ from backend.model_utils.activation_reader import load_subset_attributes
 import base64
 from io import BytesIO
 import os
+import numpy as np
 from backend.model_utils.image_extractor import ImageExtractor
 from backend.app.db.connection import get_collection
 from datetime import datetime
@@ -254,6 +255,25 @@ def filter_by_attribute(model_name: str, attr: str, value: int):
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@router.get("/models/{model_name}/id-to-index")
+def get_celeba_id_to_subset_index(model_name: str):
+    """
+    Returns a mapping from CelebA IDs to their subset indices (0-4999).
+    """
+    try:
+        subset_ids = np.load(os.path.join("backend", "model_utils", "subset_ids.npy"))
+        id_to_index = {int(celeb_id): int(idx) for idx, celeb_id in enumerate(subset_ids)}
+        return {
+            "model": model_name,
+            "id_to_index": id_to_index,
+            "count": len(id_to_index)
+        }
+    except FileNotFoundError:
+        raise HTTPException(status_code=404, detail="subset_ids.npy not found for this model")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @router.get("/health")
 def health():
     """
@@ -363,8 +383,8 @@ def get_paths_preview(model_name: str, set_name: str, limit: int = 50, offset: i
         # clamp
         if limit < 1:
             limit = 1
-        if limit > 200:
-            limit = 200
+        if limit > 10000:
+            limit = 10000
         if offset < 0:
             offset = 0
 
