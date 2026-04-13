@@ -5,6 +5,7 @@ import { signIn, signUp } from "../api";
 
 function SignIn() {
   const [isSignUp, setIsSignUp] = useState(false);
+  const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -26,7 +27,7 @@ function SignIn() {
       }
 
       try {
-        await signUp(email, password);
+        await signUp(email, password, name);
         setMessage("Account created. You can now sign in.");
         setIsSignUp(false);
         setPassword("");
@@ -62,6 +63,22 @@ function SignIn() {
             <h2>{isSignUp ? "Create Account" : "Welcome Back!"}</h2>
 
             <form onSubmit={handleSubmit}>
+              {isSignUp && (
+                <div className="mb-3">
+                  <label htmlFor="name">
+                    <strong>Name</strong>
+                  </label>
+                  <input
+                    type="text"
+                    id="name"
+                    placeholder="Enter Name"
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                  />
+                </div>
+              )}
+
+
               <div className="mb-3">
                 <label htmlFor="email">
                   <strong>Email</strong>
@@ -87,6 +104,7 @@ function SignIn() {
                   onChange={(e) => setPassword(e.target.value)}
                 />
               </div>
+
 
               {isSignUp && (
                 <div className="mb-3">
